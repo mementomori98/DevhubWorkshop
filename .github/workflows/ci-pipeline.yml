@@ -34,12 +34,6 @@ jobs:
       - name: Build
         run: dotnet build ${{ env.solutionPath }} --configuration Release --no-restore
       
-      - name: Cache SonarQube packages
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
       - name: Cache SonarQube scanner
         id: cache-sonar-scanner
         uses: actions/cache@v4
@@ -47,15 +41,37 @@ jobs:
           path: ${{ runner.temp }}/scanner
           key: ${{ runner.os }}-sonar-scanner
           restore-keys: ${{ runner.os }}-sonar-scanner
+
       - name: Install SonarQube scanner
         if: steps.cache-sonar-scanner.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
-          New-Item -Path ${{ runner.temp }}/scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path ${{ runner.temp }}/scanner
+          $scannerPath = Join-Path $env:RUNNER_TEMP "scanner"
+          New-Item -Path $scannerPath -ItemType Directory -Force | Out-Null
+          dotnet tool update dotnet-sonarscanner --tool-path $scannerPath
+
       - name: Build and analyze
         shell: pwsh
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         run: |
-          ${{ runner.temp }}/scanner/dotnet-sonarscanner begin /k:"ShoppingCart" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}"
-          dotnet build src/ShoppingCart.sln
-          ${{ runner.temp }}/scanner/dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          $scannerPath = Join-Path $env:RUNNER_TEMP "scanner"
+          $scannerExe  = Join-Path $scannerPath "dotnet-sonarscanner"
+
+          Write-Host "Using scanner at: $scannerExe"
+
+          # 1) BEGIN – note: 'begin' is a separate argument
+          & $scannerExe `
+            'begin' `
+            "/k:ShoppingCart" `
+            "/d:sonar.host.url=$env:SONAR_HOST_URL" `
+            "/d:sonar.token=$env:SONAR_TOKEN"
+
+          # 2) BUILD – same working directory as 'begin'
+          dotnet build $env:solutionPath
+
+          # 3) END – again 'end' is a separate argument
+          & $scannerExe `
+            'end' `
+            "/d:sonar.token=$env:SONAR_TOKEN"
