@@ -45,8 +45,24 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore ${{ env.solutionPath }}
 
+      # Static Code Analysis
+      - name: ReSharper Inspect Code
+        uses: muno92/resharper_inspectcode@v1
+        with:
+          solutionPath: ${{ env.solutionPath }}
+          minimumSeverity: 'warning'
+          
+      - name: Upload Inspection Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resharper-results
+          path: results.sarif
+
+      # Build
       - name: Build
         run: dotnet build ${{ env.solutionPath }} --configuration Release --no-restore
-    
+      
+      # Test
       - name: Test
         run: dotnet test ${{ env.solutionPath }} --configuration Release --no-build
