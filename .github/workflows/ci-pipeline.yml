@@ -47,3 +47,6 @@ jobs:
 
       - name: Build
         run: dotnet build ${{ env.solutionPath }} --configuration Release --no-restore
+    
+      - name: Test
+        run: dotnet test ${{ env.solutionPath }} --no-build
