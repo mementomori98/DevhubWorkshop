@@ -367,7 +367,6 @@ FodyWeavers.xsd
 .DS_Store
  
 SettingsServerWS.code-workspace
-*.sln
  
 wwwroot/
  
