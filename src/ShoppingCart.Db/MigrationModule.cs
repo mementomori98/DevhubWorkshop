@@ -1,5 +1,3 @@
 ﻿namespace ShoppingCart.Db;
 
-public class MigrationModule
-{
-}
+public class MigrationModule;
